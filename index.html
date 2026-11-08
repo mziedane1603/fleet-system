@@ -222,6 +222,20 @@ function toast(msg){
 }
 
 /* ---------------- Storage (Firebase Firestore) ---------------- */
+function showInstallHelp(){
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isHttps = location.protocol === 'https:';
+  let steps;
+  if(!isHttps) steps = 'التثبيت بيشتغل بس من رابط https بعد نشر التطبيق (مثلاً fleetsystem-415e0.web.app). افتحي الرابط من المتصفح مباشرة مش من ملف على الجهاز.';
+  else if(isIOS) steps = 'في Safari: اضغطي زر المشاركة (⬆️) ثم «إضافة إلى الشاشة الرئيسية».';
+  else steps = 'في Chrome: اضغطي قائمة ⋮ ثم «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية». لو مش ظاهرة، تأكدي إنك فاتحة الرابط في Chrome مش داخل تطبيق تاني (واتساب/فيسبوك)، وإن التطبيق مش متثبت قبل كده.';
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,25,23,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = '<div class="panel" style="max-width:380px;width:100%;margin:0"><div class="panel-title">📲 تثبيت التطبيق</div><p style="font-size:13px;line-height:1.8;margin:0 0 14px">'+steps+'</p><button class="btn btn-primary" style="width:100%;justify-content:center">تمام</button></div>';
+  ov.addEventListener('click', e=>{ if(e.target===ov || e.target.tagName==='BUTTON') ov.remove(); });
+  document.body.appendChild(ov);
+}
 let deferredInstall = null;
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall = e; if(currentUser) renderApp(); });
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
@@ -378,7 +392,7 @@ function renderApp(){
         <span>👤 ${esc(currentUser.username)}${currentUser.isAdmin?' (مدير)':''}</span>
       </div>
       <button class="nav-btn" data-nav="change-password"><span class="nav-icon">🔑</span><span>تغيير كلمة المرور</span></button>
-      <button class="nav-btn" id="installBtn" style="display:none"><span class="nav-icon">📲</span><span>تثبيت التطبيق</span></button>
+      <button class="nav-btn" id="installBtn"><span class="nav-icon">📲</span><span>تثبيت التطبيق</span></button>
       <button class="nav-btn" id="logoutBtn"><span class="nav-icon">🚪</span><span>تسجيل خروج</span></button>
     </aside>
     <main class="main" id="mainContent"></main>
@@ -394,7 +408,14 @@ function renderApp(){
     b.addEventListener('click', ()=>{ currentView = b.dataset.nav; closeSidebar(); renderApp(); });
   });
   const installBtn = document.getElementById('installBtn');
-  if(installBtn && deferredInstall){ installBtn.style.display='flex'; installBtn.addEventListener('click', async ()=>{ deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; installBtn.style.display='none'; }); }
+  if(installBtn){
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if(standalone){ installBtn.style.display='none'; }
+    else installBtn.addEventListener('click', async ()=>{
+      if(deferredInstall){ deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; return; }
+      showInstallHelp();
+    });
+  }
   document.getElementById('logoutBtn')?.addEventListener('click', ()=>{
     currentUser = null; currentView = 'dashboard';
     try{ localStorage.removeItem('fleet_uid'); }catch(_){}

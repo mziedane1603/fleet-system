@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f8a72">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="سيارات التوزيع">
 <title>نظام متابعة سيارات التوزيع</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -58,6 +66,8 @@ button,input,select,textarea{font-family:'Cairo',sans-serif;}
   .cards-grid{grid-template-columns:1fr 1fr;}
 }
 .brand{display:flex;align-items:center;gap:8px;padding:6px 8px 18px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.logo-img{background:transparent!important;padding:0;overflow:hidden;border-radius:22%;}
+.logo-img svg{display:block;}
 .brand-icon{width:34px;height:34px;border-radius:9px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;}
 .brand-text{font-weight:800;font-size:14px;color:var(--primary-dark);line-height:1.3;}
 .nav-group-label{font-size:11px;color:var(--muted);font-weight:700;margin:14px 8px 6px;}
@@ -166,6 +176,30 @@ let currentView = 'dashboard';
 let currentUser = null;
 let storageReady = true;
 
+const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<defs>
+<linearGradient id="bgL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#19a58a"/><stop offset="1" stop-color="#0a6a58"/></linearGradient>
+</defs>
+<rect width="100%" height="100%" rx="112" fill="url(#bgL)"/>
+<g transform="translate(256 256) scale(1.0) translate(-256 -256) translate(20 -12)">
+  <g fill="#ffffff" fill-opacity="0.55">
+    <rect x="44" y="214" width="34" height="14" rx="7"/>
+    <rect x="30" y="244" width="48" height="14" rx="7"/>
+    <rect x="52" y="274" width="26" height="14" rx="7"/>
+  </g>
+  <rect x="96" y="170" width="200" height="150" rx="16" fill="#ffffff"/>
+  <path d="M296 206 H366 Q376 206 383 214 L418 258 Q424 266 424 276 V320 H296 Z" fill="#ffffff" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M318 226 H358 L390 262 H318 Z" fill="#0f8a72" fill-opacity="0.9"/>
+  <g fill="#0f8a72">
+    <rect x="183" y="205" width="26" height="80" rx="6"/>
+    <rect x="156" y="232" width="80" height="26" rx="6"/>
+  </g>
+  <g>
+    <circle cx="170" cy="334" r="38" fill="#0b6e5c"/><circle cx="170" cy="334" r="29" fill="#ffffff"/><circle cx="170" cy="334" r="11" fill="#0f8a72"/>
+    <circle cx="364" cy="334" r="38" fill="#0b6e5c"/><circle cx="364" cy="334" r="29" fill="#ffffff"/><circle cx="364" cy="334" r="11" fill="#0f8a72"/>
+  </g>
+</g>
+</svg>`;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const todayStr = () => new Date().toISOString().slice(0,10);
 const fmtNum = n => Number(n||0).toLocaleString('en-US');
@@ -188,6 +222,9 @@ function toast(msg){
 }
 
 /* ---------------- Storage (Firebase Firestore) ---------------- */
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall = e; if(currentUser) renderApp(); });
+if('serviceWorker' in navigator){ window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 let dbError = null; // holds last connection/permission error message, if any
 async function loadState(){
   try{
@@ -313,13 +350,13 @@ function renderApp(){
   app.innerHTML = `
     <div class="mobile-topbar">
       <button class="hamburger-btn" id="hamburgerBtn">☰</button>
-      <div class="brand"><div class="brand-icon">🚚</div><div class="brand-text">${currentLabel||'متابعة سيارات التوزيع'}</div></div>
+      <div class="brand"><div class="brand-icon logo-img">${LOGO_SVG}</div><div class="brand-text">${currentLabel||'متابعة سيارات التوزيع'}</div></div>
       <div style="width:38px"></div>
     </div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="sidebar" id="sidebarEl">
       <div class="brand">
-        <div class="brand-icon">🚚</div>
+        <div class="brand-icon logo-img">${LOGO_SVG}</div>
         <div class="brand-text">متابعة سيارات<br>التوزيع</div>
         <button class="mobile-close" id="sidebarCloseBtn">✕</button>
       </div>
@@ -341,6 +378,7 @@ function renderApp(){
         <span>👤 ${esc(currentUser.username)}${currentUser.isAdmin?' (مدير)':''}</span>
       </div>
       <button class="nav-btn" data-nav="change-password"><span class="nav-icon">🔑</span><span>تغيير كلمة المرور</span></button>
+      <button class="nav-btn" id="installBtn" style="display:none"><span class="nav-icon">📲</span><span>تثبيت التطبيق</span></button>
       <button class="nav-btn" id="logoutBtn"><span class="nav-icon">🚪</span><span>تسجيل خروج</span></button>
     </aside>
     <main class="main" id="mainContent"></main>
@@ -355,8 +393,12 @@ function renderApp(){
   app.querySelectorAll('[data-nav]').forEach(b=>{
     b.addEventListener('click', ()=>{ currentView = b.dataset.nav; closeSidebar(); renderApp(); });
   });
+  const installBtn = document.getElementById('installBtn');
+  if(installBtn && deferredInstall){ installBtn.style.display='flex'; installBtn.addEventListener('click', async ()=>{ deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; installBtn.style.display='none'; }); }
   document.getElementById('logoutBtn')?.addEventListener('click', ()=>{
-    currentUser = null; currentView = 'dashboard'; renderApp();
+    currentUser = null; currentView = 'dashboard';
+    try{ localStorage.removeItem('fleet_uid'); }catch(_){}
+    renderApp();
   });
   renderView();
 }
@@ -399,7 +441,7 @@ function renderLogin(app){
         </div>` : ''}
         <div class="panel">
           <div style="text-align:center;margin-bottom:18px;">
-            <div class="brand-icon" style="margin:0 auto 10px;width:48px;height:48px;font-size:24px;">🚚</div>
+            <div class="brand-icon logo-img" style="margin:0 auto 10px;width:72px;height:72px;">${LOGO_SVG}</div>
             <h2 style="margin:0;color:var(--primary-dark);font-size:17px;">نظام متابعة سيارات التوزيع</h2>
             <p class="section-desc" style="margin:6px 0 0">سجّل الدخول للمتابعة</p>
           </div>
@@ -438,6 +480,7 @@ function renderLogin(app){
       return;
     }
     currentUser = { id:user.id, username:user.username, isAdmin:!!user.isAdmin, permissions:user.permissions||[] };
+    try{ localStorage.setItem('fleet_uid', user.id); }catch(_){}
     currentView = 'dashboard';
     renderApp();
   });
@@ -1227,6 +1270,11 @@ function renderBackup(main){
     DEFS.users = [{ id: uid(), username:'admin', passwordHash: adminHash, isAdmin:true, permissions: ALL_VIEW_IDS, active:true }];
     await saveDefs();
   }
+  try{
+    const savedId = localStorage.getItem('fleet_uid');
+    const u = savedId && DEFS.users.find(x=>x.id===savedId && x.active!==false);
+    if(u) currentUser = { id:u.id, username:u.username, isAdmin:!!u.isAdmin, permissions:u.permissions||[] };
+  }catch(_){}
   renderApp();
 })();
 </script>

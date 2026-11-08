@@ -237,6 +237,13 @@ function showInstallHelp(){
   document.body.appendChild(ov);
 }
 let deferredInstall = null;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+async function installApp(){
+  if(deferredInstall){ deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; return; }
+  showInstallHelp();
+}
+const APP_VERSION = 'v3';
+
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall = e; if(currentUser) renderApp(); });
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 let dbError = null; // holds last connection/permission error message, if any
@@ -408,14 +415,7 @@ function renderApp(){
     b.addEventListener('click', ()=>{ currentView = b.dataset.nav; closeSidebar(); renderApp(); });
   });
   const installBtn = document.getElementById('installBtn');
-  if(installBtn){
-    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-    if(standalone){ installBtn.style.display='none'; }
-    else installBtn.addEventListener('click', async ()=>{
-      if(deferredInstall){ deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; return; }
-      showInstallHelp();
-    });
-  }
+  if(installBtn){ if(isStandalone()) installBtn.style.display='none'; else installBtn.addEventListener('click', installApp); }
   document.getElementById('logoutBtn')?.addEventListener('click', ()=>{
     currentUser = null; currentView = 'dashboard';
     try{ localStorage.removeItem('fleet_uid'); }catch(_){}
@@ -473,10 +473,10 @@ function renderLogin(app){
             <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px;">دخول</button>
           </form>
           <div style="text-align:center;margin-top:14px;">
-            <button type="button" id="toggleDebugBtn" class="icon-btn" style="font-size:11px;color:var(--muted);">🔧 مشكلة في الدخول؟ اضغط هنا</button>
+            ${isStandalone()?'':'<button type="button" id="loginInstallBtn" class="btn btn-outline btn-sm" style="margin-bottom:10px">📲 تثبيت التطبيق</button><br>'}<button type="button" id="toggleDebugBtn" class="icon-btn" style="font-size:11px;color:var(--muted);">🔧 مشكلة في الدخول؟ اضغط هنا</button>
           </div>
           <div id="debugBox" style="display:none;margin-top:10px;padding:10px;background:#fbfdfc;border:1px dashed var(--border);border-radius:8px;font-size:11.5px;color:var(--muted);">
-            <div>حالة الاتصال بقاعدة البيانات: <b style="color:${dbError?'var(--danger)':'var(--primary)'}">${dbError?'غير متصل ⛔':'متصل ✅'}</b></div>
+            <div>الإصدار: <b>${APP_VERSION}</b><br>حالة الاتصال بقاعدة البيانات: <b style="color:${dbError?'var(--danger)':'var(--primary)'}">${dbError?'غير متصل ⛔':'متصل ✅'}</b></div>
             <div style="margin-top:4px">عدد المستخدمين المُحمّلين: <b>${DEFS.users.length}</b></div>
             <div style="margin-top:4px">أسماء المستخدمين الموجودة حالياً: <b>${DEFS.users.length? esc(DEFS.users.map(u=>u.username+(u.active===false?' (موقوف)':'')).join('، ')) : 'لا يوجد أي مستخدم محمّل'}</b></div>
           </div>
@@ -484,6 +484,7 @@ function renderLogin(app){
       </div>
     </div>
   `;
+  document.getElementById('loginInstallBtn')?.addEventListener('click', installApp);
   document.getElementById('toggleDebugBtn').addEventListener('click', ()=>{
     const box = document.getElementById('debugBox');
     box.style.display = box.style.display==='none' ? 'block' : 'none';

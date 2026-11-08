@@ -1,4 +1,4 @@
-const CACHE = 'fleet-shell-v1';
+const CACHE = 'fleet-shell-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon.png'];
 
 self.addEventListener('install', e => {

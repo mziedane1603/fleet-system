@@ -235,6 +235,20 @@ function showInstallHelp(){
   ov.innerHTML = '<div class="panel" style="max-width:380px;width:100%;margin:0"><div class="panel-title">📲 تثبيت التطبيق</div><p style="font-size:13px;line-height:1.8;margin:0 0 14px">'+steps+'</p><button class="btn btn-primary" style="width:100%;justify-content:center">تمام</button></div>';
   ov.addEventListener('click', e=>{ if(e.target===ov || e.target.tagName==='BUTTON') ov.remove(); });
   document.body.appendChild(ov);
+  // quick self-check so we know why the browser isn't offering install
+  const box = document.createElement('div');
+  box.style.cssText = 'font-size:11.5px;color:var(--muted);line-height:1.9;margin-bottom:12px;border-top:1px dashed var(--border);padding-top:8px';
+  box.textContent = 'جارِ الفحص...';
+  ov.querySelector('p').after(box);
+  (async ()=>{
+    const out = [];
+    out.push((isHttps?'✅':'❌')+' الرابط https');
+    try{ const r = await fetch('manifest.webmanifest',{cache:'no-store'}); out.push((r.ok?'✅':'❌')+' ملف manifest ('+r.status+')'); }catch(_){ out.push('❌ ملف manifest مش بيتحمّل'); }
+    try{ const reg = await navigator.serviceWorker.getRegistration(); out.push((reg?'✅':'❌')+' الـ service worker '+(reg?'مسجّل':'مش مسجّل')); }catch(_){ out.push('❌ الـ service worker غير مدعوم'); }
+    try{ const r = await fetch('icons/icon-512.png',{cache:'no-store'}); out.push((r.ok?'✅':'❌')+' الأيقونة ('+r.status+')'); }catch(_){ out.push('❌ الأيقونة مش بتتحمّل'); }
+    out.push((deferredInstall?'✅':'⚠️')+' المتصفح '+(deferredInstall?'جاهز للتثبيت':'لسه ما أرسلش إشارة التثبيت'));
+    box.innerHTML = out.join('<br>');
+  })();
 }
 let deferredInstall = null;
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
@@ -242,7 +256,7 @@ async function installApp(){
   if(deferredInstall){ deferredInstall.prompt(); await deferredInstall.userChoice; deferredInstall=null; return; }
   showInstallHelp();
 }
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v4';
 
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall = e; if(currentUser) renderApp(); });
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
